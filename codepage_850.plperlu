@@ -1,0 +1,124 @@
+--
+-- Glyn Astill 09/02/2014
+-- Plperl untrusted functions to do conversion from DOS cp850 native through Latin1 to UTF8 and vice versa
+--
+
+-- The following functions require the user to know what their client_encoiding is and call the appropriate function
+
+DROP FUNCTION IF EXISTS cp850_to_latin1(text);
+CREATE OR REPLACE FUNCTION cp850_to_latin1(text)
+RETURNS text AS
+$BODY$
+	use Encode;
+        return encode( 'utf8', decode('cp850', $_[0] ));
+$BODY$
+LANGUAGE 'plperlu' IMMUTABLE;
+
+COMMENT ON FUNCTION public.cp850_to_latin1(text) IS 'Converts text from cp850 to current latin1';
+
+--
+
+DROP FUNCTION IF EXISTS cp850_to_utf8(text);
+CREATE OR REPLACE FUNCTION cp850_to_utf8(text)
+RETURNS text AS
+$BODY$
+	use Encode;
+        return encode( 'iso-8859-1', decode('cp850', $_[0] ));
+$BODY$
+LANGUAGE 'plperlu' IMMUTABLE;
+
+COMMENT ON FUNCTION public.cp850_to_utf8(text) IS 'Converts text from cp850 to current utf8';
+
+--
+
+DROP FUNCTION IF EXISTS latin1_to_cp850(text);
+CREATE OR REPLACE FUNCTION latin1_to_cp850(text)
+RETURNS text AS
+$BODY$
+	use Encode;
+        return encode( 'cp850', decode('utf8', $_[0] ));
+$BODY$
+LANGUAGE 'plperlu' IMMUTABLE;
+
+COMMENT ON FUNCTION public.latin1_to_cp850(text) IS 'Converts text from current latin1 to cp850';
+
+--
+
+DROP FUNCTION IF EXISTS utf8_to_cp850(text);
+CREATE OR REPLACE FUNCTION utf8_to_cp850(text)
+RETURNS text AS
+$BODY$
+	use Encode;
+        return encode( 'cp850', decode('iso-8859-1', $_[0] ));
+$BODY$
+LANGUAGE 'plperlu' IMMUTABLE;
+
+COMMENT ON FUNCTION public.utf8_to_cp850(text) IS 'Converts text from current utf8 to cp850';
+
+-- The following functions do not require the user to know what their client_encoiding is
+
+DROP FUNCTION IF EXISTS public.to_cp850(text);
+CREATE OR REPLACE FUNCTION public.to_cp850(text)
+RETURNS text AS
+$BODY$
+	use Encode;
+	my $string;
+	my $rv = spi_exec_query('SELECT pg_client_encoding();', 1);
+	my $encoding = $rv->{rows}[0]->{pg_client_encoding};
+	
+	eval {
+		if ($encoding eq 'UTF8') {
+			$string = encode( 'cp850', decode('iso-8859-1', $_[0] ));
+		}
+		elsif (($encoding eq 'LATIN1') || ($encoding eq 'SQL_ASCII')){
+			$string = encode( 'cp850', decode('utf8', $_[0] ));
+		}
+		else {
+			elog(ERROR, "to_cp850 currently does not support client_encoding $encoding");
+		}
+	};
+	if ($@) {
+		elog(WARNING, "Re-encoding failed, stripping non alphanumerics: $@");
+		$string = $_[0] =~ s/[\x01-\x7f]/?/g;
+	}
+        return $string;
+$BODY$
+LANGUAGE 'plperlu' IMMUTABLE;
+
+COMMENT ON FUNCTION public.to_cp850(text) IS 'Converts text from current client_encoding to cp850';
+
+--
+
+DROP FUNCTION IF EXISTS public.from_cp850(text);
+CREATE OR REPLACE FUNCTION public.from_cp850(text)
+RETURNS text AS
+$BODY$
+	use Encode;
+	my $string;
+	my $rv = spi_exec_query('SELECT pg_client_encoding();', 1);
+	my $encoding = $rv->{rows}[0]->{pg_client_encoding};
+	
+	eval {
+		if ($encoding eq 'UTF8') {
+			$string = encode( 'iso-8859-1', decode('cp850', $_[0] ));
+		}
+		elsif (($encoding eq 'LATIN1') || ($encoding eq 'SQL_ASCII')){
+			$string = encode( 'utf8', decode('cp850', $_[0] ));
+		}
+		else {
+			elog(ERROR, "from_cp850 currently does not support client_encoding $encoding");
+		}
+	};
+	if ($@) {
+		elog(WARNING, "Re-encoding failed: $@");
+		$string = $_[0];
+	}
+        return $string;
+
+        
+$BODY$
+LANGUAGE 'plperlu' IMMUTABLE;
+
+COMMENT ON FUNCTION public.from_cp850(text) IS 'Converts text from cp850 to current client_encoding';
+
+

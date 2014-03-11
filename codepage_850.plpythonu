@@ -1,0 +1,54 @@
+--
+-- Glyn Astill 09/02/2014
+-- Plpython untrusted functions to do conversion from DOS cp850 native through Latin1 to UTF8 and vice versa
+--
+
+CREATE OR REPLACE FUNCTION cp850_to_utf8(in_text text) RETURNS text AS 
+$BODY$
+    rv = plpy.execute("SHOW client_encoding", 1)
+    v_encoding = rv[0]["client_encoding"]
+    if v_encoding.upper() != 'UTF8':
+        raise plpy.Error('Sorry client_encoding should be UTF8')
+    else:
+        return unicode(in_text, 'cp850').encode('iso8859_1')
+$BODY$ 
+LANGUAGE plpythonu;
+
+--
+
+CREATE OR REPLACE FUNCTION utf8_to_cp850(in_text text) RETURNS text AS 
+$BODY$
+    rv = plpy.execute("SHOW client_encoding", 1)
+    v_encoding = rv[0]["client_encoding"]
+    if v_encoding.upper() != 'UTF8':
+        raise plpy.Error('Sorry client_encoding should be UTF8')
+    else:
+        return unicode(in_text, 'iso8859_1').encode('cp850')
+$BODY$ 
+LANGUAGE plpythonu;
+
+--
+
+CREATE OR REPLACE FUNCTION cp850_to_latin1(in_text text) RETURNS text AS 
+$BODY$
+    rv = plpy.execute("SHOW client_encoding", 1)
+    v_encoding = rv[0]["client_encoding"]
+    if v_encoding.upper() != 'LATIN1':
+        raise plpy.Error('Sorry client_encoding should be LATIN1')
+    else:
+        return unicode(in_text, 'cp850').encode('utf-8')
+$BODY$ 
+LANGUAGE plpythonu;
+
+--
+
+CREATE OR REPLACE FUNCTION latin1_to_cp850(in_text text) RETURNS text AS 
+$BODY$
+    rv = plpy.execute("SHOW client_encoding", 1)
+    v_encoding = rv[0]["client_encoding"]
+    if v_encoding.upper() != 'LATIN1':
+        raise plpy.Error('Sorry client_encoding should be LATIN1')
+    else:
+        return unicode(in_text, 'utf-8').encode('cp850')
+$BODY$ 
+LANGUAGE plpythonu;
