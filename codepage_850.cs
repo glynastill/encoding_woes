@@ -1,3 +1,6 @@
+// Glyn Astill 09/02/2014
+// Test to do conversion from DOS cp850 native through Latin1 to UTF8 and vice versa
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
